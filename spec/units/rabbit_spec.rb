@@ -152,6 +152,21 @@ RSpec.describe Rabbit do
       expect { described_class.publish(**message_options) }.not_to raise_error
     end
 
+    it "retries when a real channel is closed by Bunny's network failure handling" do
+      closed_channel = Bunny::Channel.new(Bunny::Session.new, 1)
+      closed_channel.connection_closed!
+      attempt = 0
+
+      allow(bunny).to receive(:create_channel) do
+        attempt += 1
+        attempt <= max_retries ? closed_channel : channel
+      end
+      allow(channel).to receive(:basic_publish)
+      allow(publish_logger).to receive(:debug)
+
+      expect { described_class.publish(**message_options) }.not_to raise_error
+    end
+
     it "raises the last exception after max retries" do
       allow(channel).to receive(:basic_publish).and_raise(Bunny::ConnectionClosedError.new(""))
 

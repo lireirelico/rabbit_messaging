@@ -12,9 +12,14 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - `Rabbit::Publishing::Message` no longer raises `NoMethodError` when `headers` is
   explicitly passed as `nil` (regression introduced in 1.8.0).
-- `Rabbit::EventHandler.inherited` no longer overwrites a queue the subclass has
-  already assigned, so a subclass setting its own queue before calling `super`
-  keeps it (regression introduced in 1.9.0).
+- `Rabbit::EventHandler.inherited` no longer overwrites a queue, an
+  `ignore_queue_conversion` flag or job configs the subclass has already
+  assigned, so a subclass setting them before calling `super` keeps them
+  (the queue overwrite was introduced in 1.9.0).
+- `Bunny::ChannelAlreadyClosed` was added to the default
+  `connection_reset_exceptions`. Bunny 3.1+ closes every channel as soon as it
+  detects a dropped connection, so a publish during a reconnect now fails with
+  that error instead of `Bunny::ConnectionClosedError` and would not be retried.
 
 ## [1.9.0] - 2026-04-23
 ### Added

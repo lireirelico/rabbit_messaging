@@ -143,7 +143,8 @@ require "rabbit_messaging"
 
   - `connection_reset_exceptions` (`Array`)
 
-    Exceptions for reset connection. Default:  [`Bunny::ConnectionClosedError`].
+    Exceptions for reset connection. Default:  [`Bunny::ConnectionClosedError`,
+    `Bunny::ChannelAlreadyClosed`].
 
   ```ruby
     config.connection_reset_exceptions << MyInterestingException
