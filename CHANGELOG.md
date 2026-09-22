@@ -1,6 +1,14 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2026-09-22
+### Changed
+- Upgraded `bunny` dependency to `~> 3.0`.
+- Minimum supported Ruby version is now 3.2, as required by Bunny 3.
+
+### Removed
+- Dropped support for Ruby 3.0 and 3.1.
+
 ## [1.9.0] - 2026-04-23
 ### Added
 - Fixed `queue` class variable inheritance for `queue_as` method.
