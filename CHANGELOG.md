@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 ### Removed
 - Dropped support for Ruby 3.0 and 3.1.
 
+### Fixed
+- `Rabbit::Publishing::Message` no longer raises `NoMethodError` when `headers` is
+  explicitly passed as `nil` (regression introduced in 1.8.0).
+
 ## [1.9.0] - 2026-04-23
 ### Added
 - Fixed `queue` class variable inheritance for `queue_as` method.

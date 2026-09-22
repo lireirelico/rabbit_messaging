@@ -27,7 +27,7 @@ module Rabbit::Publishing
       self.realtime = realtime
       self.headers = headers
       self.message_id = message_id
-      self.compress = headers.with_indifferent_access.fetch(:compress, false)
+      self.compress = headers.to_h.with_indifferent_access.fetch(:compress, false)
     end
 
     def to_hash
