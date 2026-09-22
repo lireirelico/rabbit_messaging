@@ -12,7 +12,7 @@ class Rabbit::EventHandler
       super
       subclass.ignore_queue_conversion = false
       subclass.additional_job_configs = {}
-      subclass.queue = queue
+      subclass.queue ||= queue
     end
 
     private

@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - `Rabbit::Publishing::Message` no longer raises `NoMethodError` when `headers` is
   explicitly passed as `nil` (regression introduced in 1.8.0).
+- `Rabbit::EventHandler.inherited` no longer overwrites a queue the subclass has
+  already assigned, so a subclass setting its own queue before calling `super`
+  keeps it (regression introduced in 1.9.0).
 
 ## [1.9.0] - 2026-04-23
 ### Added
