@@ -16,10 +16,12 @@ All notable changes to this project will be documented in this file.
   `ignore_queue_conversion` flag or job configs the subclass has already
   assigned, so a subclass setting them before calling `super` keeps them
   (the queue overwrite was introduced in 1.9.0).
-- `Bunny::ChannelAlreadyClosed` was added to the default
-  `connection_reset_exceptions`. Bunny 3.1+ closes every channel as soon as it
-  detects a dropped connection, so a publish during a reconnect now fails with
-  that error instead of `Bunny::ConnectionClosedError` and would not be retried.
+- `Rabbit::Publishing.publish` now retries on `Bunny::ChannelAlreadyClosed`.
+  Bunny 3.1+ closes every channel as soon as it detects a dropped connection, so
+  a publish during a reconnect fails with that error instead of
+  `Bunny::ConnectionClosedError` and used to reach the caller. The pool is
+  rebuilt only when the channel's connection is down; a channel the broker closed
+  on a live connection is retried on that same connection.
 
 ## [1.9.0] - 2026-04-23
 ### Added

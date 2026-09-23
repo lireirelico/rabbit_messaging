@@ -23,6 +23,16 @@ module Rabbit
 
           log msg
         end
+      rescue Bunny::ChannelAlreadyClosed => error
+        attempt += 1
+        raise error if attempt > Rabbit.config.connection_reset_max_retries
+
+        sleep(Rabbit.config.connection_reset_timeout)
+        # A channel closed along with its connection needs a new connection. One the
+        # broker closed on a live connection does not: the pool has already dropped
+        # it, so the retry just takes another channel.
+        reinitialize_channels_pool unless error.channel&.connection&.open?
+        retry
       rescue *Rabbit.config.connection_reset_exceptions => error
         attempt += 1
         if attempt <= Rabbit.config.connection_reset_max_retries

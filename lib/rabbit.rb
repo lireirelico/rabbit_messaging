@@ -55,8 +55,10 @@ module Rabbit
       backoff_handler_max_retries: 6,
       connection_reset_max_retries: 10,
       connection_reset_timeout: 0.2,
-      connection_reset_exceptions: [Bunny::ConnectionClosedError,
-                                    Bunny::ChannelAlreadyClosed],
+      # Bunny::ChannelAlreadyClosed does not belong here: Receiving::Worker rescues
+      # this same list and would answer it by restarting the consumer. It is handled
+      # in Publishing.publish instead.
+      connection_reset_exceptions: [Bunny::ConnectionClosedError],
       logger_message_size_limit: 9_500,
       receive_logger: nil,
       publish_logger: nil,
