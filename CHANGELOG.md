@@ -22,8 +22,9 @@ All notable changes to this project will be documented in this file.
   Bunny 3.1+ closes every channel as soon as it detects a dropped connection, so
   a publish during a reconnect fails with that error instead of
   `Bunny::ConnectionClosedError` and used to reach the caller. The pool is
-  rebuilt only when the channel's connection is down. A channel the broker closed
-  on a live connection is retried once on a fresh channel of the same connection,
+  rebuilt only when the channel's connection is down or still recovering. A channel
+  the broker closed on a live connection is retried once on a fresh channel of the
+  same connection (closed channels left in the pool are skipped),
   and the error is raised if that fails too, so a message the broker rejects is not
   republished `connection_reset_max_retries` times.
 - Rebuilding the channels pool after a connection failure no longer leaks the old

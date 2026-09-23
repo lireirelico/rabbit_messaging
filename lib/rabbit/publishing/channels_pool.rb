@@ -15,9 +15,14 @@ module Rabbit
         end
 
         def pop
-          add_channel if size.zero?
+          loop do
+            add_channel if size.zero?
 
-          super
+            channel = super
+            return channel if channel.open? || !ChannelsPool.live?(@session)
+
+            @ch_dec_mon.synchronize { @ch_size -= 1 }
+          end
         end
         alias_method :deq, :pop
 
@@ -53,6 +58,10 @@ module Rabbit
         end
       end
 
+      def self.live?(session)
+        !session.nil? && session.open? && !session.recovering_from_network_failure?
+      end
+
       def initialize(session)
         @session = session
         max_size = session.channel_max
@@ -73,7 +82,7 @@ module Rabbit
         ch = pool.deq
         yield ch
       ensure
-        pool.enq ch
+        pool.enq ch if ch
       end
 
       private

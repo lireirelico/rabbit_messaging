@@ -19,7 +19,7 @@ module Rabbit
         current_pool = pool
         deliver(current_pool, msg)
       rescue Bunny::ChannelAlreadyClosed => error
-        if error.channel&.connection&.open?
+        if ChannelsPool.live?(error.channel&.connection)
           raise error if retried_on_live_connection
 
           retried_on_live_connection = true

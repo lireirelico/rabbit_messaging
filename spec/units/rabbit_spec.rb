@@ -137,13 +137,32 @@ RSpec.describe Rabbit do
       Rabbit::Publishing.instance_variable_set(:@logger, nil)
     end
 
-    def channel_closed_by_broker
+    def broker_closed_error
       live_session = Bunny::Session.new
       allow(live_session).to receive_messages(open?: true, send_frame: nil, release_channel_id: nil)
+      closed_channel = Bunny::Channel.new(live_session, 1)
+      closed_channel.handle_method(
+        AMQ::Protocol::Channel::Close.new(404, "NOT_FOUND - no exchange", 60, 40),
+      )
 
-      Bunny::Channel.new(live_session, 1).tap do |ch|
-        ch.handle_method(AMQ::Protocol::Channel::Close.new(404, "NOT_FOUND - no exchange", 60, 40))
-      end
+      closed_channel_error(closed_channel)
+    end
+
+    def network_closed_error(recovering: false)
+      session = Bunny::Session.new
+      allow(session).to receive_messages(
+        open?: recovering, recovering_from_network_failure?: recovering,
+      )
+      closed_channel = Bunny::Channel.new(session, 1)
+      closed_channel.connection_closed!
+
+      closed_channel_error(closed_channel)
+    end
+
+    def closed_channel_error(closed_channel)
+      closed_channel.basic_publish("", "some_exchange", "some_queue")
+    rescue Bunny::ChannelAlreadyClosed => error
+      error
     end
 
     it "retries publishing when an exception from connection_reset_exceptions occurs" do
@@ -165,20 +184,15 @@ RSpec.describe Rabbit do
       expect { described_class.publish(**message_options) }.not_to raise_error
     end
 
-    it "rebuilds the pool when the channel was closed along with its connection" do
-      dead_session = Bunny::Session.new
-      closed_channel = Bunny::Channel.new(dead_session, 1)
-      closed_channel.connection_closed!
+    it "rebuilds the pool when publishing finds the channel closed along with its connection" do
       attempt = 0
 
-      allow(bunny).to receive(:create_channel) do
+      allow(channel).to receive(:basic_publish) do
         attempt += 1
-        attempt <= max_retries ? closed_channel : channel
+        raise network_closed_error if attempt <= max_retries
       end
-      allow(channel).to receive(:basic_publish)
       allow(publish_logger).to receive(:debug)
 
-      expect(dead_session).not_to be_open
       expect(Rabbit::Publishing).to receive(:reinitialize_channels_pool)
         .exactly(max_retries).times.and_call_original
       expect(bunny).to receive(:close).with(false).exactly(max_retries).times
@@ -186,32 +200,63 @@ RSpec.describe Rabbit do
       expect { described_class.publish(**message_options) }.not_to raise_error
     end
 
-    it "keeps the connection when the broker closed the channel on a live one" do
-      closed_channel = channel_closed_by_broker
-      attempt = 0
+    it "republishes when waiting for confirms finds the channel closed along with its connection" do
+      confirms = 0
 
-      allow(bunny).to receive(:create_channel) do
-        attempt += 1
-        attempt == 1 ? closed_channel : channel
+      allow(channel).to receive(:wait_for_confirms) do
+        confirms += 1
+        raise network_closed_error if confirms == 1
+
+        true
       end
-      allow(channel).to receive(:basic_publish)
       allow(publish_logger).to receive(:debug)
 
-      expect(Rabbit::Publishing).not_to receive(:reinitialize_channels_pool)
+      expect(channel).to receive(:basic_publish).twice
+      expect(Rabbit::Publishing).to receive(:reinitialize_channels_pool).once.and_call_original
 
       expect { described_class.publish(**message_options) }.not_to raise_error
     end
 
-    it "gives up after one retry when the broker keeps closing the channel on a live one" do
-      closed_channel = channel_closed_by_broker
+    it "rebuilds the pool when the channel is closed while its connection is recovering" do
+      attempt = 0
 
-      allow(bunny).to receive(:create_channel).and_return(closed_channel)
+      allow(channel).to receive(:basic_publish) do
+        attempt += 1
+        raise network_closed_error(recovering: true) if attempt <= max_retries
+      end
+      allow(publish_logger).to receive(:debug)
 
-      expect(bunny).to receive(:create_channel).twice
+      expect(Rabbit::Publishing).to receive(:reinitialize_channels_pool)
+        .exactly(max_retries).times.and_call_original
+
+      expect { described_class.publish(**message_options) }.not_to raise_error
+    end
+
+    it "retries once on the same connection when the broker closed the channel" do
+      attempt = 0
+
+      allow(channel).to receive(:basic_publish) do
+        attempt += 1
+        raise broker_closed_error if attempt == 1
+      end
+      allow(publish_logger).to receive(:debug)
+
+      expect(channel).to receive(:basic_publish).twice
       expect(Rabbit::Publishing).not_to receive(:reinitialize_channels_pool)
       expect(Rabbit::Publishing).not_to receive(:sleep)
 
-      expect { described_class.publish(**message_options) }
+      expect { Timeout.timeout(5) { described_class.publish(**message_options) } }
+        .not_to raise_error
+    end
+
+    it "gives up after one retry when the broker keeps closing the channel" do
+      allow(channel).to receive(:basic_publish) { raise broker_closed_error }
+
+      expect(channel).to receive(:basic_publish).twice
+      expect(Rabbit::Publishing).not_to receive(:reinitialize_channels_pool)
+      expect(Rabbit::Publishing).not_to receive(:sleep)
+
+      expect { Timeout.timeout(5) { described_class.publish(**message_options) } }
         .to raise_error(Bunny::ChannelAlreadyClosed)
     end
 
