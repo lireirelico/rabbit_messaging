@@ -95,6 +95,10 @@ describe Rabbit::Publishing::ChannelsPool::BaseQueue do
         expect(pop).to eq(fresh_channel)
       end
 
+      it "gives up the slot of the skipped channel" do
+        expect { pop }.not_to change { instance.instance_variable_get(:@ch_size) }
+      end
+
       context "when the connection is down" do
         let(:session_open) { false }
 

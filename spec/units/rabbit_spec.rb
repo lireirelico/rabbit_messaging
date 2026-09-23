@@ -274,6 +274,23 @@ RSpec.describe Rabbit do
       expect(Rabbit::Publishing.pool).to equal(current_pool)
     end
 
+    it "does not rebuild the pool when it was replaced while publishing on it" do
+      replaced = false
+
+      allow(channel).to receive(:basic_publish) do
+        unless replaced
+          replaced = true
+          Rabbit::Publishing.send(:reinitialize_channels_pool, Rabbit::Publishing.pool)
+          raise Bunny::ConnectionClosedError.new("")
+        end
+      end
+      allow(publish_logger).to receive(:debug)
+
+      expect { described_class.publish(**message_options) }.not_to raise_error
+      expect(Bunny).to have_received(:new).twice
+      expect(bunny).to have_received(:close).once
+    end
+
     it "closes a recovering session only once its recovery completes" do
       recovery_callback = nil
       allow(bunny).to receive(:recovering_from_network_failure?).and_return(true)

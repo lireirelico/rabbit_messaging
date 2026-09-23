@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - 2026-09-22
+## [2.0.0] - 2026-09-23
 ### Changed
 - Upgraded `bunny` dependency to `~> 3.0`.
 - Minimum supported Ruby version is now 3.2, as required by Bunny 3.
@@ -12,26 +12,21 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - `Rabbit::Publishing::Message` no longer raises `NoMethodError` when `headers` is
-  explicitly passed as `nil` (regression introduced in 1.8.0); such headers are now
-  published as an empty hash.
-- `Rabbit::EventHandler.inherited` no longer overwrites a queue, an
-  `ignore_queue_conversion` flag or job configs the subclass has already
-  assigned, so a subclass setting them before calling `super` keeps them
-  (the queue overwrite was introduced in 1.9.0).
-- `Rabbit::Publishing.publish` now retries on `Bunny::ChannelAlreadyClosed`.
-  Bunny 3.1+ closes every channel as soon as it detects a dropped connection, so
-  a publish during a reconnect fails with that error instead of
-  `Bunny::ConnectionClosedError` and used to reach the caller. The pool is
-  rebuilt only when the channel's connection is down or still recovering. A channel
-  the broker closed on a live connection is retried once on a fresh channel of the
-  same connection (closed channels left in the pool are skipped),
-  and the error is raised if that fails too, so a message the broker rejects is not
-  republished `connection_reset_max_retries` times.
-- Rebuilding the channels pool after a connection failure no longer leaks the old
-  connection: it is now closed, and a connection that is still auto-recovering is
-  closed as soon as its recovery completes. Concurrent publishers failing on the
-  same pool rebuild it only once instead of opening a connection each. A failure to
-  close the old connection is reported to `exception_notifier`.
+  `nil` (regression in 1.8.0); such headers are published as an empty hash.
+- `Rabbit::EventHandler.inherited` no longer overwrites a queue,
+  `ignore_queue_conversion` or job configs the subclass assigned before calling
+  `super` (the queue overwrite was introduced in 1.9.0).
+- Publishing during a reconnect is retried again. Bunny 3.1+ raises
+  `Bunny::ChannelAlreadyClosed` instead of `Bunny::ConnectionClosedError` there,
+  which used to reach the caller. A publish already waiting for publisher confirms
+  when the connection drops still fails with `Rabbit::MessageNotDelivered` after
+  `continuation_timeout`.
+- A channel the broker closed (e.g. a missing exchange) is retried once on a fresh
+  channel instead of `connection_reset_max_retries` times, and no longer fails an
+  unrelated publish that picks it from the pool.
+- Rebuilding the channels pool no longer leaks the old connection: it is closed
+  (after recovery, if it is still recovering), concurrent failures rebuild the
+  pool once, and close errors go to `exception_notifier`.
 
 ## [1.9.0] - 2026-04-23
 ### Added
