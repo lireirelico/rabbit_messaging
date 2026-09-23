@@ -87,7 +87,7 @@ describe Rabbit::Publishing::Message do
             type: "ping",
             content_type: "application/json",
             app_id: "test_group_id.test_project_id",
-            headers: nil,
+            headers: {},
             message_id: nil,
           }
         ]

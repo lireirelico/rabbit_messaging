@@ -20,7 +20,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "bunny", "~> 3.0"
-  spec.add_dependency "kicks"
+  spec.add_dependency "kicks", ">= 3.4"
   spec.add_dependency "msgpack"
   spec.add_dependency "zlib"
 end

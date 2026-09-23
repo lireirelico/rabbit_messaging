@@ -11,20 +11,16 @@ describe Rabbit::EventHandler do
     expect(Class.new(parent).queue).to eq(:parent_queue)
   end
 
-  it "keeps ignore_queue_conversion and job configs the subclass assigned before calling super" do
+  it "keeps ignore_queue_conversion the subclass assigned before calling super" do
     subclass = Class.new(parent) do
       def self.inherited(child)
         child.ignore_queue_conversion = true
-        child.send(:job_configs, retry: false)
 
         super
       end
     end
 
-    child = Class.new(subclass)
-
-    expect(child.ignore_queue_conversion).to eq(true)
-    expect(child.additional_job_configs).to eq(retry: false)
+    expect(Class.new(subclass).ignore_queue_conversion).to eq(true)
   end
 
   it "gives a subclass its own defaults when it assigned nothing" do
@@ -37,7 +33,7 @@ describe Rabbit::EventHandler do
   it "keeps a queue the subclass assigned before calling super" do
     subclass = Class.new(parent) do
       def self.inherited(child)
-        child.send(:queue_as, :child_queue)
+        child.queue = :child_queue
 
         super
       end

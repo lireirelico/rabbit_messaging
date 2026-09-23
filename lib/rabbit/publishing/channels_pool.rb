@@ -54,6 +54,7 @@ module Rabbit
       end
 
       def initialize(session)
+        @session = session
         max_size = session.channel_max
 
         @pools = {
@@ -62,12 +63,25 @@ module Rabbit
         }.freeze
       end
 
+      def close
+        @session.after_recovery_completed { Thread.new { close_session } }
+        close_session unless @session.recovering_from_network_failure?
+      end
+
       def with_channel(confirm)
         pool = @pools[confirm]
         ch = pool.deq
         yield ch
       ensure
         pool.enq ch
+      end
+
+      private
+
+      def close_session
+        @session.close(false)
+      rescue StandardError => error
+        Rabbit.config.exception_notifier.call(error)
       end
     end
   end

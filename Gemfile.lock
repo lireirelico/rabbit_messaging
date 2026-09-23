@@ -10,7 +10,7 @@ PATH
   specs:
     rabbit_messaging (2.0.0)
       bunny (~> 3.0)
-      kicks
+      kicks (>= 3.4)
       msgpack
       zlib
 

@@ -5,13 +5,15 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Upgraded `bunny` dependency to `~> 3.0`.
 - Minimum supported Ruby version is now 3.2, as required by Bunny 3.
+- `kicks` dependency now requires `>= 3.4`, the first version built on Bunny 3.
 
 ### Removed
 - Dropped support for Ruby 3.0 and 3.1.
 
 ### Fixed
 - `Rabbit::Publishing::Message` no longer raises `NoMethodError` when `headers` is
-  explicitly passed as `nil` (regression introduced in 1.8.0).
+  explicitly passed as `nil` (regression introduced in 1.8.0); such headers are now
+  published as an empty hash.
 - `Rabbit::EventHandler.inherited` no longer overwrites a queue, an
   `ignore_queue_conversion` flag or job configs the subclass has already
   assigned, so a subclass setting them before calling `super` keeps them
@@ -20,8 +22,15 @@ All notable changes to this project will be documented in this file.
   Bunny 3.1+ closes every channel as soon as it detects a dropped connection, so
   a publish during a reconnect fails with that error instead of
   `Bunny::ConnectionClosedError` and used to reach the caller. The pool is
-  rebuilt only when the channel's connection is down; a channel the broker closed
-  on a live connection is retried on that same connection.
+  rebuilt only when the channel's connection is down. A channel the broker closed
+  on a live connection is retried once on a fresh channel of the same connection,
+  and the error is raised if that fails too, so a message the broker rejects is not
+  republished `connection_reset_max_retries` times.
+- Rebuilding the channels pool after a connection failure no longer leaks the old
+  connection: it is now closed, and a connection that is still auto-recovering is
+  closed as soon as its recovery completes. Concurrent publishers failing on the
+  same pool rebuild it only once instead of opening a connection each. A failure to
+  close the old connection is reported to `exception_notifier`.
 
 ## [1.9.0] - 2026-04-23
 ### Added
